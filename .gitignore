@@ -1,0 +1,35 @@
+# Ortam dosyaları
+venv/
+.env
+__pycache__/
+*.pyc
+
+# IDE dosyaları
+.vscode/
+.idea/
+
+# Veri seti ve büyük dosyalar (Github'a yüklenmemesi gerekenler)
+dataset/
+*.qptiff
+*.tiff
+*.tif
+*.parquet
+*.csv
+
+# Çıktılar ve Geçici Dosyalar
+scratch/
+temp/
+*.log
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Dökümanlar ve Görseller
+*.md
+!README.md
+*.txt
+*.png
+
+# Arşivlenen Test/Deneme Dosyaları
+src/archive/
+
