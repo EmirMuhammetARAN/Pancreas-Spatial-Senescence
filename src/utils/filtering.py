@@ -45,7 +45,9 @@ def _load_raw_tissue(snt_id, age, target_region, silent=False):
             'SNT648': 22950,
             'SNT282': 25000,
             'SNT227': 26000,
-            'SNT675': 29000
+            'SNT675': 29000,
+            'SNT348': 33000,
+            'SNT393': 25250,
         }
         
         if snt_id in custom_cuts:
