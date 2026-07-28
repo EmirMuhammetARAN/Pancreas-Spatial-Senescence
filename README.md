@@ -1,51 +1,52 @@
 # Pancreatic Cellular Senescence Spatial Proteomics
 
-Bu proje, bilgisayarlı görü (Computer Vision) ve PyTorch tabanlı Cellpose derin öğrenme modeli kullanılarak, insan pankreas dokusundaki hücresel yaşlanmanın (senesans) uzamsal proteomik verileri (PhenoCycler/CODEX) üzerinden incelenmesini amaçlamaktadır.
+This project aims to investigate cellular senescence in human pancreas tissues using spatial proteomics data (PhenoCycler/CODEX) with computer vision and a PyTorch-based Cellpose deep learning model.
 
-Proje, NIH SenNet veritabanından elde edilen 38 kanallı yüksek çözünürlüklü görüntüleri analiz ederek, senesansın anatomik bölgelere (Head, Body, Tail) göre nasıl değiştiğini tek hücre düzeyinde haritalandırmaktadır.
+The project analyzes 38-channel high-resolution images obtained from the NIH SenNet database to map how senescence varies across anatomical regions (Head, Body, Tail) at single-cell resolution.
 
-## Temel Özellikler (Methodology)
+## Core Methodology
 
-*   **Hücre Segmentasyonu:** PyTorch tabanlı `CellposeSAM v2` modeli kullanılarak DAPI ve E-cadherin kanalları üzerinden tam otomatik hücre sınırları tespiti.
-*   **Büyük Veri İşleme:** Yüksek çözünürlüklü (örn. 28800x50400 piksel) QPTIFF görüntülerin `zarr` ve `tifffile` ile yönetilebilir 2048x2048 boyutlarında tile'lara bölünmesi.
-*   **Uzamsal Analiz & Kümeleme:** Doku sınırlarını belirlemek için `DBSCAN` tabanlı kümeleme ve y-ekseni koordinatlarına dayalı anatomik bölge tespiti (Head, Tail).
-*   **Özellik Çıkarımı:** Segmentasyonu yapılan yüz binlerce hücrenin 38 protein kanalındaki sinyal yoğunluklarının (Insulin, p16, Lamin B1, CD68 vb.) hesaplanması.
-*   **Sağlam (Robust) Normalizasyon:** Outlier'lardan (aykırı değerler) etkilenmeyen, yaşa ve bölgeye özgü referans normalizasyon stratejisi.
+*   **Cell Segmentation:** Fully automated cell boundary detection using DAPI and E-cadherin channels via the PyTorch-based `CellposeSAM v2` model.
+*   **Big Data Processing:** Splitting high-resolution (e.g., 28800x50400 pixels) QPTIFF images into manageable 2048x2048 tiles using `zarr` and `tifffile`.
+*   **Spatial Analysis & Clustering:** `DBSCAN`-based clustering for tissue boundary detection and anatomical region separation (Head, Tail) based on y-axis coordinates.
+*   **Feature Extraction:** Calculating signal intensities for 38 protein channels (Insulin, p16, Lamin B1, CD68, etc.) for hundreds of thousands of segmented cells.
+*   **Robust Normalization:** An age- and region-specific reference normalization strategy that is highly robust to outliers.
 
-## Kurulum ve Gereksinimler
+## Installation and Requirements
 
-Projeyi çalıştırmak için aşağıdaki kütüphanelerin yüklü olduğu bir Python sanal ortamı (virtual environment) gereklidir:
+A Python virtual environment with the following libraries is required to run the project:
 
 ```bash
-# Bağımlılıkları yükleyin
+# Install dependencies
 pip install numpy pandas tifffile zarr scikit-image scikit-learn matplotlib seaborn pyarrow fastparquet
-# PyTorch ve Cellpose (CUDA desteği önerilir)
+
+# PyTorch and Cellpose (CUDA support highly recommended)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 pip install cellpose
 ```
 
-## Proje Yapısı ve Kullanım (Pipeline)
+## Project Structure & Pipeline
 
-Kodların çalışma sırası (Pipeline) aşağıdaki gibidir. Tüm süreç `process_pipeline.py` üzerinden entegre şekilde yürütülebilir.
+The pipeline execution order is detailed below. The entire process can be run seamlessly using `process_pipeline.py`.
 
-1.  **`src/cutting/extract_all_tiles.py`**: QPTIFF formatındaki devasa doku görüntülerini Zarr ile okuyarak paralel işlenebilecek daha küçük `tiff` tile'lara böler.
-2.  **`src/cutting/run_cellpose.py`**: Parçalanan tile'ları alır, PyTorch tabanlı CellposeSAM v2 modelini GPU üzerinde çalıştırarak her bir hücrenin segmentasyon maskesini (mask_tiff) çıkarır.
-3.  **`src/cutting/extract_features.py`**: Çıkarılan maskeleri orijinal görüntülerle eşleştirir, 38 farklı kanal için her hücrenin ortalama sinyal yoğunluğunu (feature extraction) hesaplar ve veriyi `.parquet` formatında kaydeder.
-4.  **`src/utils/filtering.py`**: Parquet dosyalarındaki hücresel veriyi alır, DBSCAN ile doku artefaktlarını temizler ve uzamsal (spatial) y-koordinatlarına göre pankreas bölgelerini ayırır.
-5.  **`src/analysis/bolgeler_arasi_karsilastirma.py`**: Temizlenmiş ve bölgelere ayrılmış veriyi analiz eder, senesans (p16 artışı, Lamin B1 kaybı) oranlarını hesaplar ve grafikleri (boxplot, barplot) üretir.
+1.  **`src/cutting/extract_all_tiles.py`**: Reads massive QPTIFF tissue images via Zarr and slices them into smaller, parallel-processable `tiff` tiles.
+2.  **`src/cutting/run_cellpose.py`**: Takes the extracted tiles and runs the PyTorch-based CellposeSAM v2 model on the GPU to generate segmentation masks (mask_tiff) for every cell.
+3.  **`src/cutting/extract_features.py`**: Matches the generated masks with the original raw images, computes the mean signal intensity for 38 channels per cell (feature extraction), and saves the tabular data in `.parquet` format.
+4.  **`src/utils/filtering.py`**: Loads the parquet files, cleans tissue artifacts using DBSCAN, and splits the pancreas into spatial regions based on y-coordinates.
+5.  **`src/analysis/bolgeler_arasi_karsilastirma.py`**: Analyzes the cleaned and regionally split data, calculates senescence ratios (p16 increase, Lamin B1 loss), and generates visualization plots (bar plots, box plots).
 
-## Tam Otomatik Pipeline Çalıştırma
+## Running the Automated Pipeline
 
-Tüm adımları tek bir script üzerinden çalıştırmak için:
+To execute all steps sequentially via a single script:
 
 ```bash
 python src/cutting/process_pipeline.py
 ```
 
-## Veri Seti
+## Dataset
 
-Kullanılan veriler NIH SenNet Consortium tarafından sağlanan Human Pancreas PhenoCycler/CODEX Atlas verileridir. Boyut sınırları nedeniyle ham `.qptiff` görüntüleri, üretilen `.parquet` veri dosyaları ve `.tiff` maskeleri bu depoya (repository) dahil edilmemiştir (Bkz. `.gitignore`).
+The data utilized in this study is the Human Pancreas PhenoCycler/CODEX Atlas provided by the NIH SenNet Consortium. Due to extreme file sizes, the raw `.qptiff` images, generated `.parquet` data files, and `.tiff` masks are not included in this repository (See `.gitignore`).
 
-## Lisans
+## License
 
-Bu proje araştırma ve eğitim amaçlı açık kaynak olarak sunulmuştur.
+This project is open-source and intended for research and educational purposes.
