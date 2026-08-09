@@ -3,9 +3,10 @@ import tifffile
 import numpy as np
 import zarr
 
+CH_DAPI = 0
+
 datasets = [
-    {"age": 37, "id": "SNT393", "path": r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\raw_images\PC24043_Scan1.qptiff"},
-    {"age": 37, "id": "SNT348", "path": r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\raw_images\PC24056_Scan1.qptiff"},
+    {"age": 35, "id": "SNT354", "path": r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\raw_images\SNT354_PC24058_Scan1.qptiff"}
 ]
 
 base_output_dir = r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
@@ -73,7 +74,7 @@ for ds in datasets:
                         
                     tile_data = z_to_use[:, y:y_end, x:x_end]
                     
-                    if np.max(tile_data) == 0:
+                    if np.max(tile_data[CH_DAPI]) <= 0:
                         continue
                         
                     tifffile.imwrite(tile_path, tile_data, photometric='minisblack')

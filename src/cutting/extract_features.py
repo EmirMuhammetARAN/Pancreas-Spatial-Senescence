@@ -6,6 +6,8 @@ import pandas as pd
 import tifffile
 from skimage.measure import regionprops_table
 
+CH_DAPI = 0
+
 base_dir = r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
 age_folders = sorted(glob.glob(os.path.join(base_dir, "age_*")))
 
@@ -19,13 +21,13 @@ for folder in age_folders:
     age_val = int(parts[1])
     patient_id = parts[2]
     
-    out_parquet = os.path.join(parquet_dir, f"features_{patient_id}_age{age_val}.parquet")
+    out_parquet = os.path.join(parquet_dir, f"features_dual_{patient_id}_age{age_val}.parquet")
     
     if os.path.exists(out_parquet):
         print(f"SKIPPED: {out_parquet} already exists.")
         continue
         
-    print(f"\n{'='*40}\nEXTRACTING FEATURES: {patient_id} (Age {age_val})\n{'='*40}")
+    print(f"\n{'='*40}\nEXTRACTING DUAL FEATURES: {patient_id} (Age {age_val})\n{'='*40}")
     
     mask_files = sorted(glob.glob(os.path.join(folder, "*_mask.tiff")))
     patient_df_list = []
@@ -45,11 +47,27 @@ for folder in age_folders:
         
         raw_img_hwc = np.moveaxis(raw_img, 0, -1)
         
-        props = regionprops_table(masks, intensity_image=raw_img_hwc, properties=properties)
-        df_tile = pd.DataFrame(props)
-        
-        if df_tile.empty:
+        dapi = raw_img_hwc[:,:,CH_DAPI]
+        dapi_in_cells = dapi[masks > 0]
+        if len(dapi_in_cells) == 0:
             continue
+            
+        thresh = np.percentile(dapi_in_cells, 50)
+        core_masks = np.where((masks > 0) & (dapi > thresh), masks, 0)
+        
+        props_full = regionprops_table(masks, intensity_image=raw_img_hwc, properties=properties)
+        df_full = pd.DataFrame(props_full)
+        
+        props_core = regionprops_table(core_masks, intensity_image=raw_img_hwc, properties=['label', 'mean_intensity'])
+        df_core = pd.DataFrame(props_core)
+        
+        if df_full.empty:
+            continue
+            
+        rename_core = {f"mean_intensity-{ch}": f"mean_intensity-{ch}_core" for ch in range(raw_img_hwc.shape[2])}
+        df_core.rename(columns=rename_core, inplace=True)
+        
+        df_tile = pd.merge(df_full, df_core, on='label', how='left')
             
         df_tile['patient_id'] = patient_id
         df_tile['age'] = age_val
@@ -66,8 +84,12 @@ for folder in age_folders:
             
     if patient_df_list:
         final_patient_df = pd.concat(patient_df_list, ignore_index=True)
-        rename_dict = {f"mean_intensity-{ch}": f"CH_{ch}" for ch in range(38)}
-        final_patient_df.rename(columns=rename_dict, inplace=True)
+        
+        rename_full = {f"mean_intensity-{ch}": f"CH_{ch}_full" for ch in range(38)}
+        final_patient_df.rename(columns=rename_full, inplace=True)
+        
+        rename_core_final = {f"mean_intensity-{ch}_core": f"CH_{ch}_core" for ch in range(38)}
+        final_patient_df.rename(columns=rename_core_final, inplace=True)
         
         final_patient_df.to_parquet(out_parquet, engine='pyarrow', index=False)
         

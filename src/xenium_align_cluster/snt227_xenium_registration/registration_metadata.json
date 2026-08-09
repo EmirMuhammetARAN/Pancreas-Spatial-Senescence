@@ -1,0 +1,50 @@
+{
+  "source": "SNT227 bottom PhenoCycler component registered to 69-year Xenium",
+  "pc_split_y_full_px": 26000,
+  "selected_orientation": "rotate_180",
+  "dapi_affine_fit": {
+    "matches": 2002.0,
+    "inliers": 1878.0,
+    "median_residual_level_px": 0.3803263306617737,
+    "p95_residual_level_px": 1.2691949605941772
+  },
+  "raw_pc_pixel_to_xenium_um_affine": [
+    [
+      -0.5066910299491907,
+      -0.002663712344521553,
+      13049.764470073143
+    ],
+    [
+      0.0031313404793436176,
+      -0.5067347970372916,
+      24581.064634663562
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "xenium_um_per_level5_pixel_xy": [
+    6.802128991859737,
+    6.802249999999999
+  ],
+  "matching_rules": {
+    "strict": "reciprocal nearest neighbour AND <= 3 um",
+    "high_confidence": "reciprocal nearest neighbour AND <= 5 um",
+    "candidate": "reciprocal nearest neighbour AND <= 8 um"
+  },
+  "counts": {
+    "high_confidence": 257106,
+    "strict": 252766,
+    "unmatched": 126267,
+    "candidate": 35277
+  },
+  "distance_um_quantiles": {
+    "0.05": 1.385798225263395,
+    "0.25": 2.532594283550069,
+    "0.5": 3.392928694628859,
+    "0.75": 4.305394447188473,
+    "0.95": 6.140752719546018
+  }
+}

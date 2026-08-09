@@ -1,0 +1,50 @@
+{
+  "source": "SNT393 top PhenoCycler component registered to 37-year Xenium",
+  "pc_split_y_full_px": 25250,
+  "selected_orientation": "identity",
+  "dapi_affine_fit": {
+    "matches": 1368.0,
+    "inliers": 1224.0,
+    "median_residual_level_px": 0.43447554111480713,
+    "p95_residual_level_px": 1.451744556427002
+  },
+  "raw_pc_pixel_to_xenium_um_affine": [
+    [
+      -0.506535646456924,
+      0.0006694252273697198,
+      12408.032003947808
+    ],
+    [
+      -0.0002451489931780107,
+      -0.5067185555260904,
+      12398.406067194528
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "xenium_um_per_level5_pixel_xy": [
+    6.800281270681668,
+    6.8015698455339155
+  ],
+  "matching_rules": {
+    "strict": "reciprocal nearest neighbour AND <= 3 um",
+    "high_confidence": "reciprocal nearest neighbour AND <= 5 um",
+    "candidate": "reciprocal nearest neighbour AND <= 8 um"
+  },
+  "counts": {
+    "strict": 453142,
+    "unmatched": 81514,
+    "high_confidence": 78452,
+    "candidate": 20185
+  },
+  "distance_um_quantiles": {
+    "0.05": 0.543837938840726,
+    "0.25": 1.2694863877126301,
+    "0.5": 2.0161844665024895,
+    "0.75": 3.237268934239392,
+    "0.95": 6.950186931428829
+  }
+}
