@@ -104,12 +104,12 @@ class EarlyStopping:
             self.best_state = copy.deepcopy(model.state_dict())
             self.counter = 0
 
-dataset_dir = Path(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset")
+dataset_dir = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset")
 parquet_dir = dataset_dir / "corrected_parquets"
 
 print("Merging Reference Data using True Spatial Registration Matches...")
 adata_393 = sc.read_h5ad(dataset_dir / r"spatial-transkriptomics\annotated_secondary_analysis(37 393 üst).h5ad")
-pq_393 = pd.read_parquet(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt393_xenium_registration\SNT393_matches_high_confidence_5um.parquet")
+pq_393 = pd.read_parquet(r"D:\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt393_xenium_registration\SNT393_matches_high_confidence_5um.parquet")
 
 df_ref_393 = adata_393.obs[['cell_id']].copy()
 rna_df_393 = pd.DataFrame(adata_393.X.toarray() if hasattr(adata_393.X, 'toarray') else adata_393.X, index=adata_393.obs.index)
@@ -118,7 +118,7 @@ merged_393 = df_ref_393.merge(pq_393, left_on='cell_id', right_on='xenium_cell_i
 print(f"Matched {len(merged_393)} true cells for SNT393.")
 
 adata_227 = sc.read_h5ad(dataset_dir / r"spatial-transkriptomics\annotated_secondary_analysis(69yaş 227alt).h5ad")
-pq_227 = pd.read_parquet(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt227_xenium_registration\SNT227_matches_high_confidence_5um.parquet")
+pq_227 = pd.read_parquet(r"D:\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt227_xenium_registration\SNT227_matches_high_confidence_5um.parquet")
 
 df_ref_227 = adata_227.obs[['cell_id']].copy()
 rna_df_227 = pd.DataFrame(adata_227.X.toarray() if hasattr(adata_227.X, 'toarray') else adata_227.X, index=adata_227.obs.index)

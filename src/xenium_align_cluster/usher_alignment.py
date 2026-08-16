@@ -14,15 +14,15 @@ warnings.filterwarnings('ignore')
 print("Starting Stage 3: USHER (FGW) Topological Alignment & Label Transfer")
 
 # Paths
-dataset_dir = Path(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset")
+dataset_dir = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset")
 imputed_dir = dataset_dir / "imputed_h5ad"
 annotated_dir = dataset_dir / "annotated_h5ad"
 annotated_dir.mkdir(exist_ok=True)
 
 ref_h5ad_393_path = dataset_dir / r"spatial-transkriptomics\annotated_secondary_analysis(37 393 üst).h5ad"
 ref_h5ad_227_path = dataset_dir / r"spatial-transkriptomics\annotated_secondary_analysis(69yaş 227alt).h5ad"
-matches_393_path = Path(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt393_xenium_registration\SNT393_matches_high_confidence_5um.parquet")
-matches_227_path = Path(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt227_xenium_registration\SNT227_matches_high_confidence_5um.parquet")
+matches_393_path = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt393_xenium_registration\SNT393_matches_high_confidence_5um.parquet")
+matches_227_path = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\snt227_xenium_registration\SNT227_matches_high_confidence_5um.parquet")
 
 def load_true_ref(h5ad_path, matches_path):
     adata = sc.read_h5ad(h5ad_path)

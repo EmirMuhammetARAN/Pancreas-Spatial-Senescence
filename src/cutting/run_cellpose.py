@@ -13,7 +13,7 @@ CH_DAPI = 0
 CH_ECAD = 28
 
 model = CellposeModel(gpu=True, pretrained_model='cpsam_v2')
-base_dir = r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
+base_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
 
 def norm(ch):
     p1, p99 = np.percentile(ch, 1), np.percentile(ch, 99)

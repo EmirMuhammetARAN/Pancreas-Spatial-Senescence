@@ -5,10 +5,10 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
-dataset_dir = Path(r'C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\spatial-transkriptomics')
+dataset_dir = Path(r'D:\GitHub\Pancreas-Spatial-Senescence\dataset\spatial-transkriptomics')
 h5ad_37 = dataset_dir / 'secondary_analysis(37 393 üst).h5ad'
 h5ad_69 = dataset_dir / 'secondary_analysis(69yaş 227alt).h5ad'
-reports_dir = Path(r'C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\xenium_leiden_reports')
+reports_dir = Path(r'D:\GitHub\Pancreas-Spatial-Senescence\src\xenium_align_cluster\xenium_leiden_reports')
 
 markers = {
     'Acinar': ['PRSS1', 'SPINK1', 'CTRB1', 'AMY2A'],

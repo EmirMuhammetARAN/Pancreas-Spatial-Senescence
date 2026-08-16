@@ -6,10 +6,10 @@ import zarr
 CH_DAPI = 0
 
 datasets = [
-    {"age": 35, "id": "SNT354", "path": r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\raw_images\SNT354_PC24058_Scan1.qptiff"}
+    {"age": 35, "id": "SNT354", "path": r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\raw_images\SNT354_PC24058_Scan1.qptiff"}
 ]
 
-base_output_dir = r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
+base_output_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
 os.makedirs(base_output_dir, exist_ok=True)
 TILE_SIZE = 2048
 

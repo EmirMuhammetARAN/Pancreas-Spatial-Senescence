@@ -54,7 +54,7 @@ class CytoOneModel(nn.Module):
         x_recon = self.softplus(self.decoder(z))
         return x_recon, z
 
-parquet_dir = Path(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\parquets")
+parquet_dir = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\parquets")
 ref_files = ["features_dual_SNT227_age69.parquet", "features_dual_SNT393_age37.parquet"]
 target_files = [f.name for f in parquet_dir.glob("*.parquet") if f.name not in ref_files]
 
@@ -75,7 +75,7 @@ idx = torch.randperm(ref_tensor.size(0))[:100000]
 ref_tensor_sub = ref_tensor[idx].to(device)
 ref_loader = DataLoader(TensorDataset(ref_tensor_sub), batch_size=2048, shuffle=True)
 
-out_dir = Path(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\corrected_parquets")
+out_dir = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\corrected_parquets")
 out_dir.mkdir(exist_ok=True)
 
 for tgt_file in target_files:

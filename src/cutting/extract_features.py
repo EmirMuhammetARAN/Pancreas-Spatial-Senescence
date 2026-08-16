@@ -8,11 +8,11 @@ from skimage.measure import regionprops_table
 
 CH_DAPI = 0
 
-base_dir = r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
+base_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
 age_folders = sorted(glob.glob(os.path.join(base_dir, "age_*")))
 
 properties = ['label', 'area', 'centroid', 'mean_intensity']
-parquet_dir = r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\parquets"
+parquet_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\parquets"
 os.makedirs(parquet_dir, exist_ok=True)
 
 for folder in age_folders:

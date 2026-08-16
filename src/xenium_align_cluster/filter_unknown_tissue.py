@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 import shutil
 
-parquet_dir = Path(r"C:\Users\emir_\Documents\GitHub\Pancreas-Spatial-Senescence\dataset\parquets")
+parquet_dir = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\parquets")
 
 def filter_parquet(filename, condition_func, desc):
     filepath = parquet_dir / filename
