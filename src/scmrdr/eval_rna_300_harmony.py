@@ -8,16 +8,16 @@ import seaborn as sns
 from pathlib import Path
 
 SCMRD_DIR = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\scmrd-datas")
-OUT_DIR = Path(r"C:\Users\emir_\.gemini\antigravity-ide\brain\48c92ca2-503c-4c91-87e8-1c561cbd2e6b")
+OUT_DIR = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\plots")
 
-print("Yukleniyor...")
+print("Loading...")
 df_393 = pd.read_parquet(SCMRD_DIR / "rna_harmony_SNT393.parquet")
 df_393["batch"] = "SNT393"
 df_227 = pd.read_parquet(SCMRD_DIR / "rna_harmony_SNT227.parquet")
 df_227["batch"] = "SNT227"
 
 df_all = pd.concat([df_393, df_227], ignore_index=True)
-print(f"Toplam hucre: {len(df_all)}")
+print(f"Total cells: {len(df_all)}")
 
 # Alt orneklem (LISI ve UMAP icin 20k)
 df_sub = df_all.sample(n=20000, random_state=42)
@@ -42,12 +42,12 @@ def compute_knn_lisi(embeddings, labels, k=90):
         lisi_scores.append(1.0 / simpson if simpson > 0 else 1.0)
     return np.mean(lisi_scores)
 
-print("LISI hesaplaniyor...")
+print("Computing LISI...")
 ilisi = compute_knn_lisi(X_harm, batches)
 clisi = compute_knn_lisi(X_harm, cell_types)
 print(f"300-Gen Harmony -> iLISI: {ilisi:.3f} | cLISI: {clisi:.3f}")
 
-print("UMAP calistiriliyor...")
+print("Running UMAP...")
 adata = ad.AnnData(X=X_harm)
 adata.obs["batch"] = pd.Categorical(batches)
 adata.obs["cell_type"] = pd.Categorical(cell_types)
@@ -60,4 +60,4 @@ sc.pl.umap(adata, color="batch", ax=axes[0], title=f"RNA Harmony (300 Gen) - Bat
 sc.pl.umap(adata, color="cell_type", ax=axes[1], title=f"RNA Harmony (300 Gen) - Cell Type\ncLISI: {clisi:.3f}", show=False)
 plt.tight_layout()
 fig.savefig(OUT_DIR / "RNA_300Gen_Harmony_UMAP.png", dpi=150, bbox_inches="tight")
-print("UMAP kaydedildi.")
+print("UMAP saved.")

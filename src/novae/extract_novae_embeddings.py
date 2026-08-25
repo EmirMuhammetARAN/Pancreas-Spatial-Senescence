@@ -17,7 +17,7 @@ def main():
     model_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\novae_model_weights"
     out_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\novae_embeddings"
     
-    print("Egitilmis Novae Modeli Yukleniyor...")
+    print("Egitilmis Novae Modeli Loading...")
     model = novae.Novae.from_pretrained(model_dir)
     
     for f in files:

@@ -11,7 +11,7 @@ DATA_DIR = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset")
 OBS_FILE = DATA_DIR / "global_9M_obs.parquet"
 HARMONY_CACHE_FILE = DATA_DIR / "global_9M_harmony.npy"
 
-print("1. Harmony Matrix ve Metadata Yukleniyor...")
+print("1. Harmony Matrix ve Metadata Loading...")
 X_harmony = np.load(HARMONY_CACHE_FILE)
 obs_df = pd.read_parquet(OBS_FILE)
 
@@ -67,4 +67,4 @@ plt.close()
 print("\n7. Sonuclar Kaydediliyor...")
 obs_df.to_parquet(DATA_DIR / "global_9M_obs_knn_final.parquet")
 obs_df.to_csv(DATA_DIR / "global_9M_predictions_direct_knn.csv")
-print("ISLEM BASARIYLA TAMAMLANDI!")
+print("PROCESS COMPLETED SUCCESSFULLY!")

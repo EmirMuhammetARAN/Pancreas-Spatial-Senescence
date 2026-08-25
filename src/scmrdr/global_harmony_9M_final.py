@@ -125,6 +125,6 @@ sc.pl.umap(adata_sub, color=['predicted_cell_type'], show=False)
 plt.savefig("D:/GitHub/Pancreas-Spatial-Senescence/sil/Global_9M_UMAP_PredictedTypes.png", bbox_inches='tight', dpi=300)
 plt.close()
 
-print("\n8. Tum Tahminler Kaydediliyor...")
+print("\n8. Saving all predictions...")
 adata_all.obs[['uid', 'patient_id', 'batch', 'ground_truth_type', 'kmeans_12', 'predicted_cell_type']].to_csv("D:/GitHub/Pancreas-Spatial-Senescence/dataset/global_9M_predictions.csv")
-print("ISLEM BASARIYLA TAMAMLANDI!")
+print("PROCESS COMPLETED SUCCESSFULLY!")

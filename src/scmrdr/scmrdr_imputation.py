@@ -268,7 +268,13 @@ for tgt_file in target_files:
         continue
     print(f"Processing {tgt_file}...")
     pq_tgt = pd.read_parquet(file_path)
+    obs_df = pq_tgt[['label', 'patient_id', 'age', 'tile_y', 'tile_x', 'global_y', 'global_x']].copy()
+    
     X_prot_tgt = torch.FloatTensor(np.nan_to_num(pq_tgt[prot_cols].values))
+    del pq_tgt
+    import gc
+    gc.collect()
+    
     X_rna_dummy = torch.zeros((X_prot_tgt.size(0), 300))
     Mask_tgt = torch.zeros(X_prot_tgt.size(0))
     
@@ -283,14 +289,20 @@ for tgt_file in target_files:
             batch_size = p.size(0)
             imputed_rna[idx_counter:idx_counter+batch_size] = r_mean.cpu().numpy()
             idx_counter += batch_size
+            
+    del tgt_loader, X_prot_tgt, X_rna_dummy, Mask_tgt, p, r, m
+    gc.collect()
     
     new_adata = sc.AnnData(X=imputed_rna)
     new_adata.var_names = gene_names
-    new_adata.obs = pq_tgt[['label', 'patient_id', 'age', 'tile_y', 'tile_x', 'global_y', 'global_x']].copy()
+    new_adata.obs = obs_df
     new_adata.obs.index = new_adata.obs.index.astype(str)
     
     out_name = tgt_file.replace('features_dual_', 'imputed_xenium_').replace('.parquet', '.h5ad')
     new_adata.write_h5ad(out_dir / out_name)
     print(f"Saved imputed H5AD to {out_name}")
+    
+    del new_adata, imputed_rna, obs_df
+    gc.collect()
 
 print("\nStage 2.5: Optimized scMRDR Imputation Completed Successfully!")

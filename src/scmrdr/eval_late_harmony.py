@@ -7,7 +7,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 DATA_DIR = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\imputed_h5ad")
-OUT_DIR = Path(r"C:\Users\emir_\.gemini\antigravity-ide\brain\48c92ca2-503c-4c91-87e8-1c561cbd2e6b")
+OUT_DIR = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\plots")
 
 print("1. Imputed RNA Dosyalari Yukleniyor (SNT393 ve SNT227)...")
 adata_393 = sc.read_h5ad(DATA_DIR / "imputed_xenium_SNT393_age37.h5ad")

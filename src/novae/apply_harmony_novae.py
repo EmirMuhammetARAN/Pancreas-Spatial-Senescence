@@ -1,4 +1,4 @@
-﻿import os
+import os
 import pandas as pd
 import numpy as np
 import scanpy as sc
@@ -9,11 +9,11 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings("ignore")
 
-SIL_DIR = Path(r"C:\Users\emir_\.gemini\antigravity-ide\brain\48c92ca2-503c-4c91-87e8-1c561cbd2e6b")
+OUT_DIR = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\plots")
 emb_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\novae_embeddings"
 
 def compute_knn_lisi(embeddings, labels, k=90):
-    print("  LISI hesaplaniyor...")
+    print("  Computing LISI...")
     tree = cKDTree(embeddings)
     _, indices = tree.query(embeddings, k=k)
     unique_labels = np.unique(labels)
@@ -55,7 +55,7 @@ for f in files:
     adatas.append(adata)
 
 global_adata = sc.concat(adatas)
-print(f"Toplam hucre: {len(global_adata)}")
+print(f"Total cells: {len(global_adata)}")
 
 # Son kontrol
 assert not np.isnan(global_adata.obsm["X_novae"]).any(), "Hala NaN var!"
@@ -115,7 +115,7 @@ for ax in axes.flat:
     ax.tick_params(colors="white")
 
 plt.tight_layout()
-out_path = SIL_DIR / "Novae_Harmony_Comparison.png"
+out_path = OUT_DIR / "Novae_Harmony_Comparison.png"
 plt.savefig(out_path, dpi=150, bbox_inches="tight")
 plt.close()
 print(f"  Grafik kaydedildi!")

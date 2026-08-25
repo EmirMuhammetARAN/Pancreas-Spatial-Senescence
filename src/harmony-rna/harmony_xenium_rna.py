@@ -17,7 +17,7 @@ print("=" * 60)
 print("  Xenium RNA - 300 GEN HARMONY (FULL DATASET)")
 print("=" * 60)
 
-print("\n[1/4] H5AD Dosyalari Yukleniyor...")
+print("\n[1/4] H5AD Dosyalari Loading...")
 dfs = []
 for h5ad_path in sorted(H5AD_FILES):
     adata = sc.read_h5ad(h5ad_path)

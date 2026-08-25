@@ -69,14 +69,17 @@ def read_xenium_dapi(path: Path, level: int) -> tuple[np.ndarray, tuple[float, f
     return dapi, (physical_x * full_x / level_x, physical_y * full_y / level_y)
 
 
-def read_phenocycler_dapi(path: Path, level: int, start_y_full: int) -> tuple[np.ndarray, int]:
-    """Return DAPI channel 0 from the top SNT393 component and its level-space y start."""
+def read_phenocycler_dapi(path: Path, level: int, start_y_full: int, is_top: bool) -> tuple[np.ndarray, int]:
+    """Return DAPI channel 0 and its level-space y start."""
     with tifffile.TiffFile(path) as tiff:
         level_image = tiff.series[0].levels[level].pages[0].asarray()
         full_y = tiff.series[0].shape[-2]
         downsample = full_y / level_image.shape[0]
     start_y_level = int(round(start_y_full / downsample))
-    return level_image[:start_y_level, :], start_y_level
+    if is_top:
+        return level_image[:start_y_level, :], start_y_level
+    else:
+        return level_image[start_y_level:, :], start_y_level
 
 
 def orientation_matrices(width: int, height: int) -> dict[str, tuple[np.ndarray, np.ndarray]]:
@@ -207,42 +210,64 @@ def main() -> None:
     project_root = Path(__file__).resolve().parents[1]
     spatial_dir = project_root / "dataset" / "spatial-transkriptomics"
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phenocycler-image", type=Path, default=project_root / "dataset" / "raw_images" / "SNT393_PC24043_Scan1.qptiff")
-    parser.add_argument("--phenocycler-cells", type=Path, default=project_root / "dataset" / "parquets" / "features_dual_SNT393_age37.parquet")
-    parser.add_argument("--xenium-image", type=Path, default=next(spatial_dir.glob("morphology.ome*393*")))
-    parser.add_argument("--xenium-h5ad", type=Path, default=next(spatial_dir.glob("secondary_analysis*393*.h5ad")))
-    parser.add_argument("--output-dir", type=Path, default=project_root / "deneme" / "snt393_xenium_registration")
-    parser.add_argument("--split-y-full-px", type=int, default=25250, help="Top/top boundary in the raw 51,840-pixel QPTIFF.")
+    parser.add_argument("--patient", type=str, required=True, help="Patient ID, e.g. SNT227 or SNT393")
+    parser.add_argument("--phenocycler-image", type=Path, help="Defaults to raw_images/<patient>_PC...qptiff")
+    parser.add_argument("--phenocycler-cells", type=Path, help="Defaults to parquets/features_dual_<patient>_*.parquet")
+    parser.add_argument("--xenium-image", type=Path)
+    parser.add_argument("--xenium-h5ad", type=Path)
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--split-y-full-px", type=int, help="Crop boundary in the raw QPTIFF.")
+    parser.add_argument("--crop-type", type=str, choices=["top", "bottom"], help="Top or bottom crop")
     args = parser.parse_args()
 
+    patient = args.patient.upper()
+    if not args.phenocycler_image:
+        args.phenocycler_image = next((project_root / "dataset" / "raw_images").glob(f"{patient}*.qptiff"), None)
+    if not args.phenocycler_cells:
+        args.phenocycler_cells = next((project_root / "dataset" / "parquets").glob(f"features_dual_{patient}*.parquet"), None)
+    if not args.xenium_image:
+        args.xenium_image = next(spatial_dir.glob(f"morphology.ome*{patient[3:]}*"), None)
+    if not args.xenium_h5ad:
+        args.xenium_h5ad = next(spatial_dir.glob(f"secondary_analysis*{patient[3:]}*.h5ad"), None)
+    if not args.output_dir:
+        args.output_dir = project_root / "dataset" / f"{patient.lower()}_xenium_registration"
+    if args.split_y_full_px is None:
+        args.split_y_full_px = 25250 if patient == "SNT393" else 26000
+    if not args.crop_type:
+        args.crop_type = "top" if patient == "SNT393" else "bottom"
+
+    is_top = (args.crop_type == "top")
+
     for input_path in (args.phenocycler_image, args.phenocycler_cells, args.xenium_image, args.xenium_h5ad):
-        if not input_path.exists():
-            raise FileNotFoundError(input_path)
+        if input_path is None or not input_path.exists():
+            raise FileNotFoundError(f"Missing file: {input_path}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Level 4 PC has ~16x downsampling; Xenium level 5 is ~32x.  These are
-    # comparably sized, sufficiently detailed images for robust global affine fitting.
     xenium_dapi, xenium_um_per_pixel = read_xenium_dapi(args.xenium_image, level=5)
-    pc_dapi, crop_start_level = read_phenocycler_dapi(args.phenocycler_image, level=4, start_y_full=args.split_y_full_px)
+    pc_dapi, crop_start_level = read_phenocycler_dapi(args.phenocycler_image, level=4, start_y_full=args.split_y_full_px, is_top=is_top)
     pc_to_xenium_level, chosen_orientation, fit = estimate_affine(pc_dapi, xenium_dapi)
     write_qc_images(args.output_dir, xenium_dapi, pc_dapi, pc_to_xenium_level)
 
-    # Raw PC global pixels -> PC crop pixels at level 4.
-    raw_to_crop = np.array(
-        [[1.0 / 16.0, 0.0, 0.0], [0.0, 1.0 / 16.0, 0.0], [0.0, 0.0, 1.0]],
-        dtype=np.float64,
-    )
+    if is_top:
+        raw_to_crop = np.array([[1.0 / 16.0, 0.0, 0.0], [0.0, 1.0 / 16.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)
+    else:
+        raw_to_crop = np.array([[1.0 / 16.0, 0.0, 0.0], [0.0, 1.0 / 16.0, -float(crop_start_level)], [0.0, 0.0, 1.0]], dtype=np.float64)
+        
     level_to_um = np.diag((xenium_um_per_pixel[0], xenium_um_per_pixel[1], 1.0))
     raw_pc_to_xenium_um = level_to_um @ pc_to_xenium_level @ raw_to_crop
 
-    print("Reading PhenoCycler features and retaining only SNT393 top…")
+    print(f"Reading PhenoCycler features and retaining only {patient} {args.crop_type}...")
     pc = pd.read_parquet(args.phenocycler_cells)
-    pc = pc.loc[pc["global_y"] < args.split_y_full_px].copy()
-    if pc.empty:
-        raise RuntimeError("The requested top component contains no PhenoCycler cells.")
-    print(f"PhenoCycler top cells: {len(pc):,}")
+    if is_top:
+        pc = pc.loc[pc["global_y"] < args.split_y_full_px].copy()
+    else:
+        pc = pc.loc[pc["global_y"] >= args.split_y_full_px].copy()
 
-    print("Reading Xenium cell centroids and Leiden labels…")
+    if pc.empty:
+        raise RuntimeError(f"The requested {args.crop_type} component contains no PhenoCycler cells.")
+    print(f"PhenoCycler {args.crop_type} cells: {len(pc):,}")
+
+    print("Reading Xenium cell centroids and Leiden labels...")
     xenium_xy, xenium_ids, xenium_leiden = load_xenium_observations(args.xenium_h5ad)
     print(f"Xenium cells: {len(xenium_xy):,}")
 
@@ -269,16 +294,16 @@ def main() -> None:
     result["mutual_nearest_neighbor"] = reciprocal
     result["match_quality"] = labels
 
-    all_path = args.output_dir / "SNT393_matches_all.parquet"
-    strict_path = args.output_dir / "SNT393_matches_strict_3um.parquet"
-    high_path = args.output_dir / "SNT393_matches_high_confidence_5um.parquet"
+    all_path = args.output_dir / f"{patient}_matches_all.parquet"
+    strict_path = args.output_dir / f"{patient}_matches_strict_3um.parquet"
+    high_path = args.output_dir / f"{patient}_matches_high_confidence_5um.parquet"
     result.to_parquet(all_path, index=False)
     result.loc[result["match_quality"] == "strict"].to_parquet(strict_path, index=False)
     result.loc[result["match_quality"].isin(["strict", "high_confidence"])].to_parquet(high_path, index=False)
 
     counts = result["match_quality"].value_counts().to_dict()
     metadata = {
-        "source": "SNT393 top PhenoCycler component registered to 37-year Xenium",
+        "source": f"{patient} {args.crop_type} PhenoCycler component registered to Xenium",
         "pc_split_y_full_px": args.split_y_full_px,
         "selected_orientation": chosen_orientation,
         "dapi_affine_fit": fit,
@@ -298,8 +323,6 @@ def main() -> None:
     print(f"DAPI orientation: {chosen_orientation}; inliers: {int(fit['inliers']):,}; median residual: {fit['median_residual_level_px']:.3f} level-5 px")
     print(f"Strict matches (<=3 um): {counts.get('strict', 0):,}")
     print(f"High-confidence matches (<=5 um, including strict): {counts.get('strict', 0) + counts.get('high_confidence', 0):,}")
-    print(f"Outputs: {args.output_dir}")
-
 
 if __name__ == "__main__":
     main()
