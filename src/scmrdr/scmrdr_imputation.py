@@ -1,27 +1,25 @@
-import scanpy as sc
-import pandas as pd
-import numpy as np
+﻿import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import TensorDataset, DataLoader, random_split
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset, random_split
-from pathlib import Path
-import warnings
+import pandas as pd
+import numpy as np
+import scanpy as sc
 import copy
-warnings.filterwarnings('ignore')
+from pathlib import Path
+import matplotlib.pyplot as plt
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 def zinb_loss(x, mean, disp, pi, eps=1e-8):
-    """Zero-Inflated Negative Binomial Loss for RNA (count data)"""
     t1 = torch.lgamma(disp + eps) + torch.lgamma(x + 1.0) - torch.lgamma(x + disp + eps)
     t2 = (disp + x) * torch.log(1.0 + (mean / (disp + eps))) + (x * (torch.log(disp + eps) - torch.log(mean + eps)))
     nb_case = t1 + t2 - torch.log(1.0 - pi + eps)
-
     zero_nb = torch.pow(disp / (disp + mean + eps), disp)
     zero_case = -torch.log(pi + ((1.0 - pi) * zero_nb) + eps)
-    
     result = torch.where(torch.lt(x, 1e-8), zero_case, nb_case)
     return torch.mean(result)
 
@@ -30,47 +28,59 @@ class scMRDR(nn.Module):
         super(scMRDR, self).__init__()
         
         self.encoder_p = nn.Sequential(
-            nn.Linear(prot_dim, 64),
+            nn.Linear(prot_dim, 128),
+            nn.BatchNorm1d(128),
+            nn.ELU(),
+            nn.Linear(128, 64),
             nn.BatchNorm1d(64),
-            nn.LeakyReLU(),
-            nn.Linear(64, latent_dim * 2) 
+            nn.ELU()
+        )
+        self.encoder_r = nn.Sequential(
+            nn.Linear(rna_dim, 256),
+            nn.BatchNorm1d(256),
+            nn.ELU(),
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ELU()
         )
         
-        self.encoder_r = nn.Sequential(
-            nn.Linear(rna_dim, 128),
-            nn.BatchNorm1d(128),
-            nn.LeakyReLU(),
-            nn.Linear(128, latent_dim * 2) 
-        )
+        self.fc_mu = nn.Linear(64 + 128, latent_dim)
+        self.fc_logvar = nn.Linear(64 + 128, latent_dim)
         
         self.decoder_p = nn.Sequential(
             nn.Linear(latent_dim, 64),
             nn.BatchNorm1d(64),
-            nn.LeakyReLU(),
+            nn.ELU(),
             nn.Linear(64, prot_dim)
         )
         
         self.decoder_r_base = nn.Sequential(
             nn.Linear(latent_dim, 128),
             nn.BatchNorm1d(128),
-            nn.LeakyReLU()
+            nn.ELU(),
+            nn.Linear(128, 256),
+            nn.BatchNorm1d(256),
+            nn.ELU()
         )
-        self.dec_r_mean = nn.Sequential(nn.Linear(128, rna_dim), nn.Softplus()) 
-        self.dec_r_disp = nn.Sequential(nn.Linear(128, rna_dim), nn.Softplus()) 
-        self.dec_r_pi = nn.Sequential(nn.Linear(128, rna_dim), nn.Sigmoid())    
+        self.dec_r_mean = nn.Sequential(nn.Linear(256, rna_dim), nn.Softplus())
+        self.dec_r_disp = nn.Sequential(nn.Linear(256, rna_dim), nn.Softplus())
+        self.dec_r_pi = nn.Sequential(nn.Linear(256, rna_dim), nn.Sigmoid())
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mu + eps * std
+
+    def forward(self, p, r, mask):
+        h_p = self.encoder_p(p)
+        h_r = self.encoder_r(r)
         
-    def forward(self, x_p, x_r, mask):
-        mu_p, logvar_p = self.encoder_p(x_p).chunk(2, dim=-1)
-        mu_r, logvar_r = self.encoder_r(x_r).chunk(2, dim=-1)
+        h_r = h_r * mask.unsqueeze(1)
         
-        mask_expanded = mask.unsqueeze(-1)
-        mu_u = (mu_p + mu_r * mask_expanded) / (1.0 + mask_expanded)
-        logvar_u = (logvar_p + logvar_r * mask_expanded) / (1.0 + mask_expanded)
+        h_concat = torch.cat([h_p, h_r], dim=1)
+        
+        mu_u = self.fc_mu(h_concat)
+        logvar_u = self.fc_logvar(h_concat)
         
         z_u = self.reparameterize(mu_u, logvar_u)
         
@@ -105,7 +115,7 @@ class EarlyStopping:
             self.counter = 0
 
 dataset_dir = Path(r"D:\GitHub\Pancreas-Spatial-Senescence\dataset")
-parquet_dir = dataset_dir / "corrected_parquets"
+parquet_dir = dataset_dir / "parquets"
 
 print("Merging Reference Data using True Spatial Registration Matches...")
 adata_393 = sc.read_h5ad(dataset_dir / r"spatial-transkriptomics\annotated_secondary_analysis(37 393 üst).h5ad")
@@ -138,7 +148,6 @@ Mask_ref = torch.ones(X_prot_ref.size(0))
 idx = torch.randperm(X_prot_ref.size(0))
 ref_dataset = TensorDataset(X_prot_ref[idx], X_rna_ref[idx], Mask_ref[idx])
 
-# Train / Val Split (80 / 20)
 total_size = len(ref_dataset)
 train_size = int(0.8 * total_size)
 val_size = total_size - train_size
@@ -153,11 +162,16 @@ mse_loss = nn.MSELoss()
 beta = 1.0 
 early_stopping = EarlyStopping(patience=10)
 
+
+log_file = open(dataset_dir / "scmrdr_training.log", "w", encoding="utf-8")
+csv_file = open(dataset_dir / "scmrdr_loss.csv", "w", encoding="utf-8")
+csv_file.write("Epoch,Train_Prot,Train_RNA,Val_Prot,Val_RNA\n")
+train_losses, val_losses = [], []
+
 print("\nTraining scMRDR Model with Early Stopping (Max 200 Epochs)...")
 epochs = 200
 
 for epoch in range(epochs):
-    # Train
     model.train()
     epoch_p_loss = 0
     epoch_r_loss = 0
@@ -185,7 +199,6 @@ for epoch in range(epochs):
     train_p = epoch_p_loss/len(train_loader)
     train_r = epoch_r_loss/len(train_loader)
         
-    # Evaluate
     model.eval()
     val_p_loss = 0
     val_r_loss = 0
@@ -204,7 +217,12 @@ for epoch in range(epochs):
     val_r = val_r_loss/len(val_loader)
     val_total = val_p + val_r
     
-    print(f"Epoch {epoch+1:03d}/{epochs} | Train [Prot:{train_p:.2f} RNA:{train_r:.4f}] | Val [Prot:{val_p:.2f} RNA:{val_r:.4f}]")
+    log_line = f"Epoch {epoch+1:03d}/{epochs} | Train [Prot:{train_p:.2f} RNA:{train_r:.4f}] | Val [Prot:{val_p:.2f} RNA:{val_r:.4f}]"
+    print(log_line)
+    log_file.write(log_line + "\n")
+    csv_file.write(f"{epoch+1},{train_p},{train_r},{val_p},{val_r}\n")
+    train_losses.append(train_p + train_r)
+    val_losses.append(val_p + val_r)
     
     early_stopping(val_total, model)
     if early_stopping.early_stop:
@@ -215,13 +233,27 @@ else:
     print("Reached max epochs! Restoring best weights anyway.")
     model.load_state_dict(early_stopping.best_state)
 
+
+log_file.close()
+csv_file.close()
+torch.save(early_stopping.best_state, dataset_dir / "scmrdr_best_weights.pth")
+plt.figure()
+plt.plot(train_losses, label="Train Total Loss")
+plt.plot(val_losses, label="Val Total Loss")
+plt.legend()
+plt.title("scMRDR Autoencoder Training Loss")
+plt.savefig(dataset_dir / "scmrdr_loss_curve.png", dpi=300)
+
 print("\nImputing Target Datasets...")
-target_files = ["cytoone_corrected_features_dual_SNT348_age37.parquet",
-                "cytoone_corrected_features_dual_SNT354_age35.parquet",
-                "cytoone_corrected_features_dual_SNT484_age69.parquet",
-                "cytoone_corrected_features_dual_SNT675_age69.parquet",
-                "cytoone_corrected_features_dual_SNT899_age35.parquet",
-                "features_dual_SNT393_age37.parquet"]
+target_files = [
+    "features_dual_SNT227_age69.parquet",
+    "features_dual_SNT348_age37.parquet",
+    "features_dual_SNT354_age35.parquet",
+    "features_dual_SNT393_age37.parquet",
+    "features_dual_SNT484_age69.parquet",
+    "features_dual_SNT675_age69.parquet",
+    "features_dual_SNT899_age35.parquet"
+]
 
 out_dir = dataset_dir / "imputed_h5ad"
 out_dir.mkdir(exist_ok=True)
@@ -229,11 +261,8 @@ model.eval()
 gene_names = adata_393.var_names 
 
 for tgt_file in target_files:
-    if tgt_file.startswith("cytoone_"):
-        file_path = parquet_dir / tgt_file
-    else:
-        file_path = dataset_dir / "parquets" / tgt_file
-        
+    file_path = parquet_dir / tgt_file
+    
     if not file_path.exists():
         print(f"Warning: File not found {file_path}")
         continue
@@ -260,7 +289,7 @@ for tgt_file in target_files:
     new_adata.obs = pq_tgt[['label', 'patient_id', 'age', 'tile_y', 'tile_x', 'global_y', 'global_x']].copy()
     new_adata.obs.index = new_adata.obs.index.astype(str)
     
-    out_name = tgt_file.replace('cytoone_corrected_features_dual_', 'imputed_xenium_').replace('.parquet', '.h5ad')
+    out_name = tgt_file.replace('features_dual_', 'imputed_xenium_').replace('.parquet', '.h5ad')
     new_adata.write_h5ad(out_dir / out_name)
     print(f"Saved imputed H5AD to {out_name}")
 
