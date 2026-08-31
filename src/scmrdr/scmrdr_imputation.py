@@ -168,7 +168,13 @@ csv_file = open(dataset_dir / "scmrdr_loss.csv", "w", encoding="utf-8")
 csv_file.write("Epoch,Train_Prot,Train_RNA,Val_Prot,Val_RNA\n")
 train_losses, val_losses = [], []
 
-print("\nTraining scMRDR Model with Early Stopping (Max 200 Epochs)...")
+
+if Path('scMRDR_weights.pt').exists():
+    print("\nFound existing weights! Skipping training and loading directly...")
+    model.load_state_dict(torch.load('scMRDR_weights.pt'))
+else:
+    print("\nTraining scMRDR Model with Early Stopping (Max 200 Epochs)...")
+
 epochs = 200
 
 for epoch in range(epochs):
@@ -280,14 +286,14 @@ for tgt_file in target_files:
     
     tgt_loader = DataLoader(TensorDataset(X_prot_tgt, X_rna_dummy, Mask_tgt), batch_size=4096, shuffle=False)
     
-    imputed_rna = np.empty((X_prot_tgt.size(0), 300), dtype=np.float32)
+    imputed_rna = np.empty((X_prot_tgt.size(0), 300), dtype=np.float16)
     idx_counter = 0
     with torch.no_grad():
         for p, r, m in tgt_loader:
             p, r, m = p.to(device), r.to(device), m.to(device)
             _, (r_mean, _, _), _, _ = model(p, r, m)
             batch_size = p.size(0)
-            imputed_rna[idx_counter:idx_counter+batch_size] = r_mean.cpu().numpy()
+            imputed_rna[idx_counter:idx_counter+batch_size] = r_mean.cpu().numpy().astype(np.float16)
             idx_counter += batch_size
             
     del tgt_loader, X_prot_tgt, X_rna_dummy, Mask_tgt, p, r, m
