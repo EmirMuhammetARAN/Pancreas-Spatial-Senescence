@@ -51,23 +51,28 @@ adata_rna_227_ref = adata_rna_227[adata_rna_227.obs_names.intersection(uid_gt_22
 del adata_rna_393, adata_rna_227
 gc.collect()
 
-print("2. Protein Verileri (Parquet) Okunuyor...")
-pq_393 = pd.read_parquet(DATA_DIR / "parquets" / "features_dual_SNT393_age37.parquet")
-pq_227 = pd.read_parquet(DATA_DIR / "parquets" / "features_dual_SNT227_age69.parquet")
+print("2. Protein Verileri (Novae Embeddings) Okunuyor...")
+pq_393 = pd.read_parquet(DATA_DIR / "parquets" / "features_dual_SNT393_age37.parquet", columns=['tile_x', 'tile_y', 'label', 'patient_id'])
+pq_227 = pd.read_parquet(DATA_DIR / "parquets" / "features_dual_SNT227_age69.parquet", columns=['tile_x', 'tile_y', 'label', 'patient_id'])
 pq_393['uid'] = pq_393['tile_x'].astype(str) + "_" + pq_393['tile_y'].astype(str) + "_" + pq_393['label'].astype(str)
 pq_227['uid'] = pq_227['tile_x'].astype(str) + "_" + pq_227['tile_y'].astype(str) + "_" + pq_227['label'].astype(str)
 pq_393.set_index('uid', inplace=True)
 pq_227.set_index('uid', inplace=True)
 
-prot_cols = [c for c in pq_393.columns if c not in ['label', 'patient_id', 'age', 'tile_y', 'tile_x', 'global_y', 'global_x', 'uid']]
+novae_393 = pd.read_parquet(DATA_DIR / "novae" / "novae_embeddings" / "SNT393_novae.parquet")
+novae_227 = pd.read_parquet(DATA_DIR / "novae" / "novae_embeddings" / "SNT227_novae.parquet")
+novae_393.index = pq_393.index
+novae_227.index = pq_227.index
 
 pq_393_ref = pq_393.loc[pq_393.index.intersection(uid_gt_393)].copy()
 pq_227_ref = pq_227.loc[pq_227.index.intersection(uid_gt_227)].copy()
-del pq_393, pq_227
+novae_393_ref = novae_393.loc[pq_393.index.intersection(uid_gt_393)].copy()
+novae_227_ref = novae_227.loc[pq_227.index.intersection(uid_gt_227)].copy()
+del pq_393, pq_227, novae_393, novae_227
 
-adata_prot_393 = sc.AnnData(X=pq_393_ref[prot_cols].fillna(0).values.astype(np.float32), obs=pq_393_ref[['patient_id']])
+adata_prot_393 = sc.AnnData(X=novae_393_ref.values.astype(np.float32), obs=pq_393_ref[['patient_id']])
 adata_prot_393.obs_names = pq_393_ref.index
-adata_prot_227 = sc.AnnData(X=pq_227_ref[prot_cols].fillna(0).values.astype(np.float32), obs=pq_227_ref[['patient_id']])
+adata_prot_227 = sc.AnnData(X=novae_227_ref.values.astype(np.float32), obs=pq_227_ref[['patient_id']])
 adata_prot_227.obs_names = pq_227_ref.index
 
 # Hizalama (Alignment)
@@ -90,13 +95,23 @@ adata_prot_ref.obs['ground_truth_type'] = adata_prot_ref.obs_names.map({**gt_dic
 
 mdata_ref = mu.MuData({'rna': adata_rna_ref, 'prot': adata_prot_ref})
 mdata_ref.obs['ground_truth_type'] = mdata_ref.obs_names.map({**gt_dict_393, **gt_dict_227})
+
+# Filter bad Novae cells
+X_prot = mdata_ref['prot'].X
+nan_mask = np.isnan(X_prot).any(axis=1)
+zero_mask = np.linalg.norm(np.nan_to_num(X_prot), axis=1) == 0
+bad_mask = nan_mask | zero_mask
+
+if bad_mask.any():
+    print(f"Bozuk Novae satirlari bulundu, siliniyor: {bad_mask.sum()}")
+    valid_cells = mdata_ref.obs_names[~bad_mask]
+    mdata_ref = mdata_ref[valid_cells].copy()
+
 del adata_rna_393_ref, adata_rna_227_ref, pq_393_ref, pq_227_ref, adata_prot_393, adata_prot_227
 gc.collect()
 
-print("3. Preprocessing: Protein CLR Normalizasyonu ve RNA PCA (Dinamik)...")
-# Protein icin CLR Normalization
-mu.prot.pp.clr(mdata_ref['prot'])
-# Proteinde PCA yapmiyoruz, 38 raw/clr kanalin tamamini kullaniyoruz
+print("3. Preprocessing: Protein Novae Embedding Yukleme ve RNA PCA (Dinamik)...")
+# Proteinde PCA yapmiyoruz, Novae embedding'in tamamini kullaniyoruz
 mdata_ref['prot'].obsm['X_pca'] = mdata_ref['prot'].X.copy()
 
 # RNA icin PCA (30 Bilesen - Varyans dirsegine gore)
@@ -148,22 +163,36 @@ for f in imputed_files:
     if len(ad_rna_q) == 0:
         continue
         
-    pq_q = pd.read_parquet(DATA_DIR / "parquets" / f"features_dual_{patient}_age{f.stem.split('age')[1].split('.')[0]}.parquet")
+    pq_q = pd.read_parquet(DATA_DIR / "parquets" / f"features_dual_{patient}_age{f.stem.split('age')[1].split('.')[0]}.parquet", columns=['tile_x', 'tile_y', 'label', 'patient_id'])
     pq_q['uid'] = pq_q['tile_x'].astype(str) + "_" + pq_q['tile_y'].astype(str) + "_" + pq_q['label'].astype(str)
     pq_q.set_index('uid', inplace=True)
+    
+    novae_q = pd.read_parquet(DATA_DIR / "novae" / "novae_embeddings" / f"{patient}_novae.parquet")
+    novae_q.index = pq_q.index
     
     common_q = ad_rna_q.obs_names.intersection(pq_q.index)
     ad_rna_q = ad_rna_q[common_q]
     pq_q = pq_q.loc[common_q]
+    novae_q = novae_q.loc[common_q]
     
-    ad_prot_q = sc.AnnData(X=pq_q[prot_cols].fillna(0).values.astype(np.float32), obs=pq_q[['patient_id']])
+    ad_prot_q = sc.AnnData(X=novae_q.values.astype(np.float32), obs=pq_q[['patient_id']])
     ad_prot_q.obs_names = pq_q.index
     
     mdata_q = mu.MuData({'rna': ad_rna_q, 'prot': ad_prot_q})
-    del ad_rna_q, pq_q, ad_prot_q; gc.collect()
+    del ad_rna_q, pq_q, novae_q, ad_prot_q; gc.collect()
     
-    # CLR Normalizasyonu
-    mu.prot.pp.clr(mdata_q['prot'])
+    # Filter bad Novae cells in query
+    X_prot_q = mdata_q['prot'].X
+    nan_mask_q = np.isnan(X_prot_q).any(axis=1)
+    zero_mask_q = np.linalg.norm(np.nan_to_num(X_prot_q), axis=1) == 0
+    bad_mask_q = nan_mask_q | zero_mask_q
+
+    if bad_mask_q.any():
+        print(f"  -> Bozuk Novae satirlari bulundu, siliniyor: {bad_mask_q.sum()}")
+        valid_cells_q = mdata_q.obs_names[~bad_mask_q]
+        mdata_q = mdata_q[valid_cells_q].copy()
+    
+    # Assign X to X_pca
     mdata_q['prot'].obsm['X_pca'] = mdata_q['prot'].X.copy()
     
     # Ingest PCA Koordinatları (Sadece RNA icin, cunku Protein dogrudan 38 ozellik)
