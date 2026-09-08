@@ -17,6 +17,7 @@ dataset/
 *.csv
 
 # Çıktılar ve Geçici Dosyalar
+results/
 scratch/
 temp/
 *.log
