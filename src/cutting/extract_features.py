@@ -44,30 +44,41 @@ for folder in age_folders:
         
         masks = tifffile.imread(mask_path)
         raw_img = tifffile.imread(raw_path) 
-        
         raw_img_hwc = np.moveaxis(raw_img, 0, -1)
         
-        dapi = raw_img_hwc[:,:,CH_DAPI]
-        dapi_in_cells = dapi[masks > 0]
-        if len(dapi_in_cells) == 0:
-            continue
-            
-        thresh = np.percentile(dapi_in_cells, 50)
-        core_masks = np.where((masks > 0) & (dapi > thresh), masks, 0)
+        # Load true matched nuclear mask (Pass 2 from run_cellpose.py)
+        core_mask_path = mask_path.replace('_mask.tiff', '_core_mask.tiff')
+        if os.path.exists(core_mask_path):
+            core_masks = tifffile.imread(core_mask_path)
+        else:
+            # Safe fallback for legacy tiles prior to dual-pass segmentation
+            dapi = raw_img_hwc[:, :, CH_DAPI]
+            dapi_in_cells = dapi[masks > 0]
+            if len(dapi_in_cells) == 0:
+                continue
+            thresh = np.percentile(dapi_in_cells, 50)
+            core_masks = np.where((masks > 0) & (dapi > thresh), masks, 0)
         
         props_full = regionprops_table(masks, intensity_image=raw_img_hwc, properties=properties)
         df_full = pd.DataFrame(props_full)
-        
-        props_core = regionprops_table(core_masks, intensity_image=raw_img_hwc, properties=['label', 'mean_intensity'])
-        df_core = pd.DataFrame(props_core)
-        
         if df_full.empty:
             continue
-            
+        
+        # Extract true nuclear properties (including exact segmented nuclear area)
+        props_core = regionprops_table(core_masks, intensity_image=raw_img_hwc, properties=['label', 'area', 'mean_intensity'])
+        df_core = pd.DataFrame(props_core)
+        df_core.rename(columns={'area': 'area_core'}, inplace=True)
+        
         rename_core = {f"mean_intensity-{ch}": f"mean_intensity-{ch}_core" for ch in range(raw_img_hwc.shape[2])}
         df_core.rename(columns=rename_core, inplace=True)
         
+        # 1-to-1 label merge
         df_tile = pd.merge(df_full, df_core, on='label', how='left')
+        
+        # Morphological Quality Metrics & Explicit Core Missingness
+        df_tile['area_core'] = df_tile['area_core'].fillna(0.0)
+        df_tile['is_core_imputed'] = (df_tile['area_core'] <= 0).astype(np.uint8)
+        df_tile['n_c_ratio'] = (df_tile['area_core'] / (df_tile['area'] + 1e-6)).clip(0.0, 1.0)
             
         df_tile['patient_id'] = patient_id
         df_tile['age'] = age_val

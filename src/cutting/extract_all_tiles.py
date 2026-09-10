@@ -5,8 +5,21 @@ import zarr
 
 CH_DAPI = 0
 
+raw_images_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\raw_images"
+
+PATIENT_METADATA = {
+    "SNT354": {"age": 35, "file": "SNT354_PC24058_Scan1.qptiff"},
+    "SNT899": {"age": 35, "file": "SNT899_PC24046_Scan1.qptiff"},
+    "SNT348": {"age": 37, "file": "SNT348_PC24056_Scan1.qptiff"},
+    "SNT393": {"age": 37, "file": "SNT393_PC24043_Scan1.qptiff"},
+    "SNT227": {"age": 69, "file": "SNT227_PC24038_Scan1.qptiff"},
+    "SNT484": {"age": 69, "file": "SNT484_PC24045_Scan1.qptiff"},
+    "SNT675": {"age": 69, "file": "SNT675_PC24049_Scan1.qptiff"},
+}
+
 datasets = [
-    {"age": 35, "id": "SNT354", "path": r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\raw_images\SNT354_PC24058_Scan1.qptiff"}
+    {"age": meta["age"], "id": pid, "path": os.path.join(raw_images_dir, meta["file"])}
+    for pid, meta in PATIENT_METADATA.items()
 ]
 
 base_output_dir = r"D:\GitHub\Pancreas-Spatial-Senescence\dataset\tiles"
