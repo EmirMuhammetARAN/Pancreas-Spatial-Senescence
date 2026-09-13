@@ -1,10 +1,13 @@
 import os
+import sys
 import glob
 import time
 import numpy as np
 import pandas as pd
 import tifffile
 from skimage.measure import regionprops_table
+
+sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 CH_DAPI = 0
 
@@ -96,10 +99,11 @@ for folder in age_folders:
     if patient_df_list:
         final_patient_df = pd.concat(patient_df_list, ignore_index=True)
         
-        rename_full = {f"mean_intensity-{ch}": f"CH_{ch}_full" for ch in range(38)}
+        num_ch = raw_img_hwc.shape[2]
+        rename_full = {f"mean_intensity-{ch}": f"CH_{ch}_full" for ch in range(num_ch)}
         final_patient_df.rename(columns=rename_full, inplace=True)
         
-        rename_core_final = {f"mean_intensity-{ch}_core": f"CH_{ch}_core" for ch in range(38)}
+        rename_core_final = {f"mean_intensity-{ch}_core": f"CH_{ch}_core" for ch in range(num_ch)}
         final_patient_df.rename(columns=rename_core_final, inplace=True)
         
         final_patient_df.to_parquet(out_parquet, engine='pyarrow', index=False)

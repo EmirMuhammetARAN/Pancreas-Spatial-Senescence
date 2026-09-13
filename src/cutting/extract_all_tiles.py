@@ -90,7 +90,7 @@ for ds in datasets:
                     if np.max(tile_data[CH_DAPI]) <= 0:
                         continue
                         
-                    tifffile.imwrite(tile_path, tile_data, photometric='minisblack')
+                    tifffile.imwrite(tile_path, tile_data, photometric='minisblack', compression='zlib')
                     
                     if count % 10 == 0:
                         print(f"[{count}/{total_tiles}] Saved: {tile_name}")

@@ -291,6 +291,10 @@ for s_idx, sec in enumerate(sections_def, 1):
         df_out[f'CH_{ch}_core'] = df_island[f'CH_{ch}_core'].values.astype(np.float32)
         
     df_out['is_core_imputed'] = is_core_imp
+    if 'area_core' in df_island:
+        df_out['area_core'] = df_island['area_core'].values.astype(np.float32)
+    if 'n_c_ratio' in df_island:
+        df_out['n_c_ratio'] = df_island['n_c_ratio'].values.astype(np.float32)
     df_out['predicted_cell_type'] = pred_names
     df_out['cell_type_confidence'] = pred_confidences
     

@@ -7,7 +7,7 @@ from cellpose.models import CellposeModel
 import time
 from skimage.segmentation import clear_border
 
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 CH_DAPI = 0
 CH_ECAD = 28
@@ -33,14 +33,14 @@ for folder in age_folders:
     age_name = os.path.basename(folder)
     tiff_files = sorted([f for f in glob.glob(os.path.join(folder, "*.tiff")) if '_mask' not in f])
     
-    print(f"\n{'='*40}\n{age_name}: Processing {len(tiff_files)} tiles (Dual-Mask Mode)...\n{'='*40}")
+    print(f"\n{'='*40}\n{age_name}: Processing {len(tiff_files)} tiles (Dual-Mask Mode)...\n{'='*40}", flush=True)
 
     for i, tiff_path in enumerate(tiff_files):
         out_cell_path = tiff_path.replace('.tiff', '_mask.tiff')
         out_core_path = tiff_path.replace('.tiff', '_core_mask.tiff')
 
         if os.path.exists(out_cell_path) and os.path.exists(out_core_path):
-            print(f"  [{i+1}/{len(tiff_files)}] Skipped (already exists): {os.path.basename(tiff_path)}")
+            print(f"  [{i+1}/{len(tiff_files)}] Skipped (already exists): {os.path.basename(tiff_path)}", flush=True)
             continue
 
         try:
@@ -74,11 +74,11 @@ for folder in age_folders:
             n_cells = len(np.unique(masks_cell_clean)) - 1
             n_nuclei = len(np.unique(core_masks_clean)) - 1
             
-            tifffile.imwrite(out_cell_path, masks_cell_clean.astype(np.uint32))
-            tifffile.imwrite(out_core_path, core_masks_clean.astype(np.uint32))
+            tifffile.imwrite(out_cell_path, masks_cell_clean.astype(np.uint32), compression='zlib')
+            tifffile.imwrite(out_core_path, core_masks_clean.astype(np.uint32), compression='zlib')
 
-            print(f"  [{i+1}/{len(tiff_files)}] {os.path.basename(tiff_path)}: {n_cells} cells, {n_nuclei} matched nuclei ({elapsed:.1f}s)")
+            print(f"  [{i+1}/{len(tiff_files)}] {os.path.basename(tiff_path)}: {n_cells} cells, {n_nuclei} matched nuclei ({elapsed:.1f}s)", flush=True)
         except Exception as e:
-            print(f"  [{i+1}/{len(tiff_files)}] ERROR ({os.path.basename(tiff_path)}): {e}")
+            print(f"  [{i+1}/{len(tiff_files)}] ERROR ({os.path.basename(tiff_path)}): {e}", flush=True)
 
 print("\n\nAll dual-mask processing completed!")
